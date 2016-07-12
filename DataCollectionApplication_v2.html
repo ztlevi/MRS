@@ -1,0 +1,74 @@
+    <!doctype html>  
+    <html>  
+    <head>  
+    <title>/2.0/?method=user.gettoptracks</title>  
+    <script src="http://ajax.googleapis.com/ajax/libs/jquery/1.11.1/jquery.min.js"></script>  
+    </head>  
+    <body>
+    <script> 
+	jsonData = {};	
+    $(document).ready(function() { 
+		$.ajaxSetup({
+		async: false
+		});
+		//get friends
+		$.getJSON("http://ws.audioscrobbler.com/2.0/?method=user.getfriends&user=corpsetastic&api_key=a0f73b8edfd36c45e207b27fa375026f&limit=500&format=json", function(jsonFriends) { 
+			var friendsList = jsonFriends.friends.user;
+			for(var friendsIndex = 0; friendsIndex < 300; friendsIndex++){
+			//get weekly track lists ID
+				var friendName = friendsList[friendsIndex].name;
+				$.extend(true, jsonData, {[friendName] : []});
+				$.getJSON("http://ws.audioscrobbler.com/2.0/?method=user.getweeklychartlist&user="+friendsList[friendsIndex].name+"&api_key=a0f73b8edfd36c45e207b27fa375026f&format=json", function(jsonTrackLists) {  
+					var weeklyTrackLists = jsonTrackLists.weeklychartlist.chart;
+					console.log(jsonTrackLists.weeklychartlist["@attr"].user);
+					// number of weeks as interval : half a year
+					var interval = 26;
+					for(var weeklyTrackListsIndex = weeklyTrackLists.length-1; weeklyTrackListsIndex > weeklyTrackLists.length-interval-1; weeklyTrackListsIndex--){
+						jsonData[friendsList[friendsIndex].name].push({[weeklyTrackLists[weeklyTrackListsIndex].from+"-"+weeklyTrackLists[weeklyTrackListsIndex].to] : []});
+						objectID = weeklyTrackLists.length - weeklyTrackListsIndex -1;
+						//get the corresponding tracks
+						$.getJSON("http://ws.audioscrobbler.com/2.0/?method=user.getweeklytrackchart&user="+
+						jsonTrackLists.weeklychartlist["@attr"].user+
+						"&from="+
+						weeklyTrackLists[weeklyTrackListsIndex].from+
+						"&to="+
+						weeklyTrackLists[weeklyTrackListsIndex].to+
+						"&api_key=a0f73b8edfd36c45e207b27fa375026f&format=json", function(jsonWeeklyTracks) {  
+							var tracksArray = jsonWeeklyTracks.weeklytrackchart.track;
+							var friendName = jsonWeeklyTracks.weeklytrackchart["@attr"].user;
+							var startDate = jsonWeeklyTracks.weeklytrackchart["@attr"].from;
+							var endDate = jsonWeeklyTracks.weeklytrackchart["@attr"].to;
+							for(i = 0; i < tracksArray.length; i++){
+								$.extend(true, jsonData[friendName][objectID][startDate+"-"+endDate], 
+									{
+										[i] : {
+											"name": tracksArray[i].name,
+											"playcount": tracksArray[i].playcount,
+											"mbid": tracksArray[i].mbid
+										}
+									}
+								);
+							}
+						}); 
+					}
+				});
+			}
+			var jsonOutput = JSON.stringify(jsonData);
+			var blob = new Blob([jsonOutput], {type: "application/json"});
+			var url  = URL.createObjectURL(blob);
+			var a = document.createElement('a');
+			a.download    = "dataset.json";
+			a.href        = url;
+			a.textContent = "Download backup.json";
+			a.click();
+		});			
+    });  
+    </script>  
+    <div id="result"></div>  
+    </body>  
+    </html>  
+
+﻿
+
+
+ 
